@@ -10,24 +10,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon2.png">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
-        /* Base Reset */
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         
-        /* The App Iframe - Starts completely transparent (invisible) */
         iframe { width: 100vw; height: 100vh; border: none; opacity: 0; transition: opacity 0.4s ease-in; }
         
-        /* ------------------------------------------- */
-        /* PROFESSIONAL SPLASH SCREEN ANIMATION        */
-        /* ------------------------------------------- */
         #splash-screen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             background-color: #ffffff; z-index: 9999; transition: opacity 0.4s ease-out;
         }
         
-        /* The Blue Spinning Ring */
         .spinner {
             width: 48px; height: 48px; border: 4px solid #e9ecef;
             border-top: 4px solid #0d6efd; border-radius: 50%;
@@ -36,9 +32,30 @@
         
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Branding Text */
         .brand-text { font-size: 24px; font-weight: bold; color: #212529; margin: 0; letter-spacing: 0.5px;}
         .sub-text { font-size: 13px; color: #6c757d; margin-top: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* --- THE FLOATING INSTALL BUTTON --- */
+        #install-button {
+            display: none; /* Hidden by default */
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
+            z-index: 10000;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -49,34 +66,57 @@
         <p class="sub-text">Establishing Secure Connection</p>
     </div>
 
+    <button id="install-button" style="display: none;"><i class="bi bi-download"></i> Install MediTech OS App</button>
+
     <iframe id="app-frame" src="https://script.google.com/macros/s/AKfycbzEtGfBvXQhaXLGMi1U7NcRMAV9rh233GF6S80ZPAq6whGit1X8OQcyG_IQXZRmpFDRFw/exec" allow="camera; microphone; fullscreen"></iframe>
 
     <script>
-        // 1. The Logic: Wait for Google to finish, then swap the screens!
+        // 1. Splash Screen Fade
         document.getElementById('app-frame').onload = function() {
-            // Fade out the splash screen
             document.getElementById('splash-screen').style.opacity = '0';
-            
-            // Fade in the actual application
             document.getElementById('app-frame').style.opacity = '1';
-            
-            // Remove the splash screen from memory after the fade animation finishes
-            setTimeout(() => { 
-                document.getElementById('splash-screen').style.display = 'none'; 
-            }, 400);
+            setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; }, 400);
         };
-    </script>
 
-    <script>
+        // 2. Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js').then(function(registration) {
-                    console.log('ServiceWorker registration successful');
-                }, function(err) {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
+                navigator.serviceWorker.register('sw.js');
             });
         }
+
+        // 3. Custom Install Button Logic
+        let deferredPrompt;
+        const installButton = document.getElementById('install-button');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome's default mini-infobar
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can install the PWA
+            installButton.style.display = 'flex';
+        });
+
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt !== null) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                    installButton.style.display = 'none'; // Hide button after install
+                }
+                // We've used the prompt, and can't use it again, throw it away
+                deferredPrompt = null;
+            }
+        });
+
+        // If the app is successfully installed, hide the button
+        window.addEventListener('appinstalled', () => {
+            installButton.style.display = 'none';
+        });
     </script>
 </body>
 </html>
