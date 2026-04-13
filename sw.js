@@ -1,20 +1,28 @@
-const CACHE_NAME = 'meditech-v1';
+const CACHE_NAME = 'meditech-v2';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon2.png'
+];
 
-// Install the Service Worker and skip waiting
 self.addEventListener('install', (event) => {
-    self.skipWaiting();
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(urlsToCache);
+    })
+  );
 });
 
-// Activate and immediately claim the browser
 self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
+  event.waitUntil(clients.claim());
 });
 
-// A real fetch listener that makes Chrome happy
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request).catch(() => {
-            return new Response('MediTech OS is offline. Please check your internet connection.');
-        })
-    );
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
 });
